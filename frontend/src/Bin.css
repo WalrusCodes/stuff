@@ -1,0 +1,17 @@
+.Bin {
+  background: #eef;
+  border: 1px solid #ddf;
+  margin: 20px;
+}
+
+.BinName {
+  padding: 5px;
+  font-size: 120%;
+  border-bottom: 1px solid #ddf;
+}
+
+.BinMetadata {
+  border-bottom: 1px solid #ddf;
+  padding: 5px;
+  font-size: 80%;
+}

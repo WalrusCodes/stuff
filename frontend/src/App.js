@@ -1,21 +1,31 @@
-import './App.css';
+import "./App.css";
+import "bootstrap/dist/css/bootstrap.min.css";
+import Navbar from "react-bootstrap/Navbar";
+import Bin from "./Bin.js";
+import { useFetch } from "react-async";
 
 function App() {
+  const { data, error } = useFetch("/list", {
+    headers: { accept: "application/json" },
+  });
+
+  // TODO: make this less ugly.
+  let out;
+  if (error) {
+    out = `error: ${error.message}`;
+  } else if (data) {
+    console.log(data);
+    out = data.bins.map((x) => <Bin key={x.id} {...x} />);
+  } else {
+    out = "pending";
+  }
+
   return (
     <div className="App">
-      <header className="App-header">
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+      <Navbar bg="light">
+        <Navbar.Brand>STUFF</Navbar.Brand>
+      </Navbar>
+      {out}
     </div>
   );
 }
