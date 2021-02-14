@@ -1,85 +1,77 @@
 use actix_web::{middleware, web, App, HttpResponse, HttpServer, Responder};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::env;
 
-/// Describes whether a given node is an item or a bin.
+mod db;
+
+use db::{dummy::DummyDatabase, Database, Node};
+
+/// Response for "/bins".
 #[derive(Serialize, Clone)]
-enum NodeType {
-    Bin,
-    Item,
-}
-
-/// A node is an item or a bin (container for items). We use a common type to allow standardized
-/// handling of metadata, photos, etc.
-#[derive(Serialize, Clone)]
-struct Node {
-    id: String,
-    name: String,
-    node_type: NodeType,
-    children: Vec<Node>,
-}
-
-impl Node {
-    fn make_empty_bin(id: &str, name: &str) -> Self {
-        Node {
-            id: id.to_string(),
-            name: name.to_string(),
-            node_type: NodeType::Bin,
-            children: Vec::new(),
-        }
-    }
-
-    fn make_item(id: &str, name: &str) -> Self {
-        Node {
-            id: id.to_string(),
-            name: name.to_string(),
-            node_type: NodeType::Item,
-            children: Vec::new(),
-        }
-    }
-}
-
-/// Response for a "/list" request.
-#[derive(Serialize, Default)]
 struct BinList {
     bins: Vec<Node>,
 }
 
-/// Handler for "/list" - returns a list of bins containing items.
-async fn handle_list() -> impl Responder {
-    let mut bin_list = BinList::default();
-    let mut id_ctr = 0;
-    for _ in 1..=3 {
-        let mut bin = Node::make_empty_bin(&format!("bin-{}", id_ctr), &format!("{}", id_ctr));
-        id_ctr += 1;
+/// Request for adding a new item to a bin.
+#[derive(Deserialize, Default, Clone, Debug)]
+struct AddRequest {
+    name: String,
+}
 
-        for _ in 1..5 {
-            bin.children.push(Node::make_item(
-                &format!("item-{}", id_ctr),
-                &format!("{}", id_ctr),
-            ));
-            id_ctr += 1;
+struct AppState {
+    db: DummyDatabase,
+}
+
+impl AppState {
+    fn new() -> AppState {
+        AppState {
+            db: DummyDatabase::new(),
         }
-
-        bin_list.bins.push(bin);
     }
+}
+
+/// Handler for GET "/bins" - returns a list of bins containing items.
+async fn get_bins(data: web::Data<AppState>) -> impl Responder {
+    let bin_list = BinList {
+        bins: data.db.get_bins(),
+    };
     HttpResponse::Ok().json(bin_list)
+}
+
+/// Handler for POST "/bins/{bin_id}" - adds an item to a bin.
+async fn add_item(
+    data: web::Data<AppState>,
+    web::Path(bin_id): web::Path<String>,
+    req: web::Json<AddRequest>,
+) -> impl Responder {
+    HttpResponse::Ok().json(data.db.add_item(&bin_id, &req.name))
+}
+
+fn config_routes(cfg: &mut web::ServiceConfig) {
+    cfg.service(
+        web::scope("/bins")
+            .route("", web::get().to(get_bins))
+            .route("/{bin_id}", web::post().to(add_item)),
+    );
+    cfg.service(web::scope("").default_service(
+        web::resource("").route(web::to(|| HttpResponse::NotFound().body("nope"))),
+    ));
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     if env::var_os("RUST_LOG").is_none() {
-        env::set_var("RUST_LOG", "actix_web=debug,actix_server=debug");
+        env::set_var("RUST_LOG", "info,actix_web=debug,actix_server=debug");
     }
     env_logger::init();
 
-    HttpServer::new(|| {
+    let state = web::Data::new(AppState::new());
+
+    HttpServer::new(move || {
         App::new()
+            .app_data(state.clone())
             .wrap(middleware::Logger::default())
-            .route("/list", web::get().to(handle_list))
-            .default_service(
-                web::resource("").route(web::to(|| HttpResponse::NotFound().body("nope"))),
-            )
+            .configure(config_routes)
     })
     .bind("0.0.0.0:3123")?
     .run()
