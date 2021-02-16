@@ -5,25 +5,33 @@ import DropdownButton from "react-bootstrap/DropdownButton";
 import ListGroup from "react-bootstrap/ListGroup";
 import Form from "react-bootstrap/Form";
 import { useState } from "react";
+import { Droppable, Draggable } from "react-beautiful-dnd";
 
 const BinMetadata = ({ id }) => {
   return <div className="BinMetadata">id: {id}</div>;
 };
 
-const BinItem = ({ name }) => {
+const BinItem = ({ id, index, name }) => {
   return (
-    <ListGroup.Item>
-      Item {name}
-      <DropdownButton
-        size="sm"
-        variant="outline-secondary"
-        title="..."
-        as="span"
-        style={{ float: "right" }}
-      >
-        <Dropdown.Item>Delete</Dropdown.Item>
-      </DropdownButton>
-    </ListGroup.Item>
+    <Draggable draggableId={id} index={index}>
+      {(provided) => (
+        <ListGroup.Item {...provided.draggableProps} ref={provided.innerRef}>
+          <span className="DragHandle" {...provided.dragHandleProps}>
+            dragme
+          </span>
+          Item {name}
+          <DropdownButton
+            size="sm"
+            variant="outline-secondary"
+            title="..."
+            as="span"
+            style={{ float: "right" }}
+          >
+            <Dropdown.Item>Delete</Dropdown.Item>
+          </DropdownButton>
+        </ListGroup.Item>
+      )}
+    </Draggable>
   );
 };
 
@@ -89,22 +97,29 @@ const NewBinItem = ({ id, onAdd }) => {
 };
 
 const Bin = (props) => {
-  const { id, name, children, onUpdate } = props;
+  const { id, name, children, order, onUpdate } = props;
 
   const onAdd = (newItem) => {
-    onUpdate({ id, name, children: [...children, newItem] });
+    let newChildren = { ...children };
+    newChildren[newItem.id] = newItem;
+    onUpdate({ id, name, children: newChildren });
   };
 
   return (
     <div className="Bin">
       <div className="BinName">Bin {name}</div>
       <BinMetadata id={id} />
-      <ListGroup>
-        {children.map((item) => (
-          <BinItem key={item.id} {...item} />
-        ))}
-        <NewBinItem key={`${id}-new`} id={id} onAdd={onAdd} />
-      </ListGroup>
+      <Droppable droppableId={id}>
+        {(provided) => (
+          <ListGroup ref={provided.innerRef} {...provided.droppableProps}>
+            {order.map((id, index) => (
+              <BinItem key={id} index={index} {...children[id]} />
+            ))}
+            {provided.placeholder}
+            <NewBinItem key={`${id}-new`} id={id} onAdd={onAdd} />
+          </ListGroup>
+        )}
+      </Droppable>
     </div>
   );
 };
