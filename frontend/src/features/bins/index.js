@@ -2,6 +2,7 @@ import { createAction, createReducer, current } from "@reduxjs/toolkit";
 
 import mockData from "../../redux/mock_data";
 
+// Actions that can be dispatched against the store to update the state.
 export const binsLoading = createAction("bins/loading");
 export const binsLoaded = createAction("bins/loaded");
 export const binsItemMoved = createAction("bins/item_moved");
@@ -11,7 +12,6 @@ const initialState = {
   // "idle", "loading", "done", "error"
   status: "idle",
   errorMessage: "",
-  // bins: null,
   bins: {},
   binOrder: [],
 };
