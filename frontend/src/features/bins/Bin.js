@@ -1,11 +1,13 @@
-import "./Bin.css";
-
 import Dropdown from "react-bootstrap/Dropdown";
 import DropdownButton from "react-bootstrap/DropdownButton";
 import ListGroup from "react-bootstrap/ListGroup";
 import Form from "react-bootstrap/Form";
 import { useState } from "react";
 import { Droppable, Draggable } from "react-beautiful-dnd";
+import { useDispatch, useSelector } from "react-redux";
+
+import "./Bin.css";
+import { addItem } from "./";
 
 const BinMetadata = ({ id }) => {
   return <div className="BinMetadata">id: {id}</div>;
@@ -35,15 +37,14 @@ const BinItem = ({ id, index, name }) => {
   );
 };
 
-const NewBinItem = ({ id, onAdd }) => {
-  // Value of the item to be added.
+// Form input for adding a new item to the bin.
+const NewBinItem = ({ binId }) => {
   const [name, setName] = useState("");
+  const dispatch = useDispatch();
   // Whether we have a POST request pending to add the item.
-  const [pending, setPending] = useState(false);
-  // Called when textbox value changes.
-  const onChange = (event) => {
-    setName(event.target.value);
-  };
+  // const [pending, setPending] = useState(false);
+  const pending = false;
+
   // When form is submitted (<enter> is pressed on the "Add Item" line), we
   // mark the box read-only and fire off a POST request. If it succeeds, it
   // will return the new Node element which we pass to the onAdd function from
@@ -54,29 +55,9 @@ const NewBinItem = ({ id, onAdd }) => {
       return;
     }
 
-    setPending(true);
-    const body = { name: name };
-
-    fetch(`/bins/${id}`, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    })
-      .then((res) => res.json())
-      .then(
-        (result) => {
-          onAdd(result);
-          setName("");
-          setPending(false);
-        },
-        (error) => {
-          console.log("Error", error);
-          setPending(false);
-        }
-      );
+    // TODO: re-add support for showing pending.
+    dispatch(addItem({ binId, name }));
+    setName("");
   };
   return (
     <ListGroup.Item>
@@ -88,7 +69,7 @@ const NewBinItem = ({ id, onAdd }) => {
             name="name"
             placeholder="Add item"
             readOnly={pending}
-            onChange={onChange}
+            onChange={(event) => setName(event.target.value)}
           />
         </Form.Group>
       </Form>
@@ -97,13 +78,10 @@ const NewBinItem = ({ id, onAdd }) => {
 };
 
 const Bin = (props) => {
-  const { id, name, children, order, onUpdate } = props;
-
-  const onAdd = (newItem) => {
-    let newChildren = { ...children };
-    newChildren[newItem.id] = newItem;
-    onUpdate({ id, name, children: newChildren });
-  };
+  // "id" is passed in via props. We then grab the details about the bin from
+  // the state using this id.
+  const bin = useSelector((state) => state.bins[props.id]);
+  const { id, name, children, order } = bin;
 
   return (
     <div className="Bin">
@@ -116,7 +94,7 @@ const Bin = (props) => {
               <BinItem key={id} index={index} {...children[id]} />
             ))}
             {provided.placeholder}
-            <NewBinItem key={`${id}-new`} id={id} onAdd={onAdd} />
+            <NewBinItem key={`${id}-new`} binId={id} />
           </ListGroup>
         )}
       </Droppable>
