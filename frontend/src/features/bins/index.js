@@ -1,4 +1,4 @@
-import { createAction, createReducer, current } from "@reduxjs/toolkit";
+import { createAction, createReducer } from "@reduxjs/toolkit";
 
 import mockData from "../../redux/mock_data";
 
@@ -23,13 +23,12 @@ const reducer = createReducer(initialState, {
   },
   // When remote data arrives, change status to "done" and set data.
   [binsLoaded.type]: (state, action) => {
-    console.log(action);
     state.bins = action.payload.children;
     state.binOrder = action.payload.order;
     state.status = "done";
-    // "current" turns the "state" proxy into real data so it can be logged.
-    console.log("done", current(state));
-    // console.log("done");
+    // "current" from @reduxjs/toolkit turns the "state" proxy into real data
+    // so it can be logged.
+    // console.log("done", current(state));
   },
   // An item was added to a bin.
   [binsItemAdded.type]: (state, action) => {
@@ -41,7 +40,6 @@ const reducer = createReducer(initialState, {
   // An item was deleted from a bin.
   [binsItemDeleted.type]: (state, action) => {
     const { binId, id } = action.payload;
-    console.log(binId, id);
     const bin = state.bins[binId];
     delete bin.children[id];
     const idx = bin.order.indexOf(id);
