@@ -7,6 +7,7 @@ export const binsLoading = createAction("bins/loading");
 export const binsLoaded = createAction("bins/loaded");
 export const binsItemMoved = createAction("bins/item_moved");
 export const binsItemAdded = createAction("bins/item_added");
+export const binsItemDeleted = createAction("bins/item_deleted");
 
 const initialState = {
   // "idle", "loading", "done", "error"
@@ -36,6 +37,15 @@ const reducer = createReducer(initialState, {
     const bin = state.bins[binId];
     bin.children[item.id] = item;
     bin.order.push(item.id);
+  },
+  // An item was deleted from a bin.
+  [binsItemDeleted.type]: (state, action) => {
+    const { binId, id } = action.payload;
+    console.log(binId, id);
+    const bin = state.bins[binId];
+    delete bin.children[id];
+    const idx = bin.order.indexOf(id);
+    bin.order.splice(idx, 1);
   },
   // An item was dragged inside the bin or between bins.
   [binsItemMoved.type]: (state, action) => {
@@ -117,6 +127,11 @@ export const addItem = ({ binId, name }) => async (dispatch) => {
   //       setPending(false);
   //     }
   //   );
+};
+
+export const deleteItem = ({ binId, id }) => async (dispatch) => {
+  // TODO: call API.
+  dispatch(binsItemDeleted({ binId, id }));
 };
 
 export default reducer;
