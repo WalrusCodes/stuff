@@ -1,54 +1,59 @@
-import { createAction, createReducer } from "@reduxjs/toolkit";
+import { createReducer } from "@reduxjs/toolkit";
 
-import mockData from "../../redux/mock_data";
-
-// Actions that can be dispatched against the store to update the state.
-export const binsLoading = createAction("bins/loading");
-export const binsLoaded = createAction("bins/loaded");
-export const binsItemMoved = createAction("bins/item_moved");
-export const binsItemAdded = createAction("bins/item_added");
-export const binsItemDeleted = createAction("bins/item_deleted");
+import { fetchData, addItem, moveItem, deleteItem } from "../../api.js";
 
 const initialState = {
-  // "idle", "loading", "done", "error"
-  status: "idle",
+  loading: false,
   errorMessage: "",
   bins: {},
   binOrder: [],
 };
 
 const reducer = createReducer(initialState, {
-  [binsLoading.type]: (state) => {
-    state.status = "loading";
+  [fetchData.pending.type]: (state) => {
+    state.loading = true;
   },
-  // When remote data arrives, change status to "done" and set data.
-  [binsLoaded.type]: (state, action) => {
+  // When initial data load completes, store the data.
+  [fetchData.fulfilled.type]: (state, action) => {
     state.bins = action.payload.children;
     state.binOrder = action.payload.order;
-    state.status = "done";
+    state.loading = false;
     // "current" from @reduxjs/toolkit turns the "state" proxy into real data
     // so it can be logged.
     // console.log("done", current(state));
   },
+  [fetchData.rejected.type]: (state, action) => {
+    state.loading = false;
+    state.errorMessage = action.error;
+  },
   // An item was added to a bin.
-  [binsItemAdded.type]: (state, action) => {
-    const { binId, item } = action.payload;
+  [addItem.fulfilled.type]: (state, action) => {
+    const binId = action.meta.arg.binId;
+    const item = action.payload;
     const bin = state.bins[binId];
     bin.children[item.id] = item;
     bin.order.push(item.id);
   },
   // An item was deleted from a bin.
-  [binsItemDeleted.type]: (state, action) => {
-    const { binId, id } = action.payload;
+  [deleteItem.fulfilled.type]: (state, action) => {
+    const { binId, id } = action.meta.arg;
     const bin = state.bins[binId];
     delete bin.children[id];
     const idx = bin.order.indexOf(id);
     bin.order.splice(idx, 1);
   },
+  // Lock the source and destination bins. They will get unlocked when we get
+  // updated bins from the server.
+  [moveItem.pending.type]: (state, action) => {
+    const { source, destination } = action.meta.arg;
+    state.bins[source.droppableId].locked = true;
+    state.bins[destination.droppableId].locked = true;
+  },
   // An item was dragged inside the bin or between bins.
-  [binsItemMoved.type]: (state, action) => {
+  // TODO: what do we want to return from the server?
+  [moveItem.fulfilled.type]: (state, action) => {
     // Drag and Drop data coming from react-beautiful-dnd.
-    const { source, destination, draggableId } = action.payload;
+    const { source, destination, draggableId } = action.meta.arg;
 
     if (!destination) {
       return;
@@ -75,61 +80,5 @@ const reducer = createReducer(initialState, {
     }
   },
 });
-
-// Kicks off a request to fetch initial data.
-export const fetchData = () => async (dispatch) => {
-  dispatch(binsLoading());
-  // TODO: remove this simulated loading time.
-  await new Promise((r) => setTimeout(r, 1000));
-  // TODO: handle errors.
-  dispatch(binsLoaded(mockData));
-};
-
-// For now, generate dummy sequential IDs when items are inserted.
-let dummyIdCounter = 50;
-
-export const addItem = ({ binId, name }) => async (dispatch) => {
-  // TODO: remove this simulated loading time.
-  await new Promise((r) => setTimeout(r, 500));
-  // TODO: handle errors.
-  dummyIdCounter++;
-  dispatch(
-    binsItemAdded({
-      binId,
-      item: {
-        id: `item-${dummyIdCounter}`,
-        name,
-      },
-    })
-  );
-
-  // TODO: re-add this back.
-  // const body = { name: name };
-  // fetch(`/bins/${id}`, {
-  //   method: "POST",
-  //   headers: {
-  //     Accept: "application/json",
-  //     "Content-Type": "application/json",
-  //   },
-  //   body: JSON.stringify(body),
-  // })
-  //   .then((res) => res.json())
-  //   .then(
-  //     (result) => {
-  //       onAdd(result);
-  //       setName("");
-  //       setPending(false);
-  //     },
-  //     (error) => {
-  //       console.log("Error", error);
-  //       setPending(false);
-  //     }
-  //   );
-};
-
-export const deleteItem = ({ binId, id }) => async (dispatch) => {
-  // TODO: call API.
-  dispatch(binsItemDeleted({ binId, id }));
-};
 
 export default reducer;

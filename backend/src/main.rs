@@ -1,21 +1,22 @@
 use actix_web::{middleware, web, App, HttpResponse, HttpServer, Responder};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::env;
 
 mod db;
 
-use db::{dummy::DummyDatabase, Database, Node};
-
-/// Response for "/bins".
-#[derive(Serialize, Clone)]
-struct BinList {
-    bins: Vec<Node>,
-}
+use db::{dummy::DummyDatabase, Database};
 
 /// Request for adding a new item to a bin.
 #[derive(Deserialize, Default, Clone, Debug)]
 struct AddRequest {
     name: String,
+}
+
+/// Request for moving an item to a different bin or different location in the bin.
+#[derive(Deserialize, Default, Clone, Debug)]
+struct MoveRequest {
+    bin_id: String,
+    location: usize,
 }
 
 struct AppState {
@@ -32,10 +33,8 @@ impl AppState {
 
 /// Handler for GET "/bins" - returns a list of bins containing items.
 async fn get_bins(data: web::Data<AppState>) -> impl Responder {
-    let bin_list = BinList {
-        bins: data.db.get_bins(),
-    };
-    HttpResponse::Ok().json(bin_list)
+    let state = data.db.get_bins();
+    HttpResponse::Ok().json(state)
 }
 
 /// Handler for POST "/bins/{bin_id}" - adds an item to a bin.
@@ -47,14 +46,25 @@ async fn add_item(
     HttpResponse::Ok().json(data.db.add_item(&bin_id, &req.name))
 }
 
+/// Handler for POST "/items/{item_id}/move".
+async fn move_item(
+    data: web::Data<AppState>,
+    web::Path(item_id): web::Path<String>,
+    req: web::Json<MoveRequest>,
+) -> impl Responder {
+    HttpResponse::Ok().json(data.db.move_item(&item_id, &req.bin_id, req.location))
+}
+
 fn config_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/bins")
             .route("", web::get().to(get_bins))
             .route("/{bin_id}", web::post().to(add_item)),
     );
+    cfg.service(web::scope("/items").route("/{item_id}/move", web::post().to(move_item)));
+    // 404 handler for any other paths.
     cfg.service(web::scope("").default_service(
-        web::resource("").route(web::to(|| HttpResponse::NotFound().body("nope"))),
+        web::resource("").route(web::to(|| HttpResponse::NotFound().body("page not found"))),
     ));
 }
 

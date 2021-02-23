@@ -7,7 +7,7 @@ import { Droppable, Draggable } from "react-beautiful-dnd";
 import { useDispatch, useSelector } from "react-redux";
 
 import "./Bin.css";
-import { addItem, deleteItem } from "./";
+import { addItem, deleteItem } from "../../api";
 
 const BinMetadata = ({ id }) => {
   return <div className="BinMetadata">id: {id}</div>;
@@ -84,23 +84,36 @@ const Bin = ({ id: binId }) => {
   // "id" is passed in via props. We then grab the details about the bin from
   // the state using this id.
   const bin = useSelector((state) => state.bins[binId]);
-  const { name, children, order } = bin;
+  const { name, children, order, locked } = bin;
+
+  // TODO: do we want to lock the bin while items within it are moved and such?
+  const maybeLocked = {};
+  if (locked) {
+    // TODO: lock the bin.
+  }
 
   return (
-    <div className="Bin">
+    <div className="Bin" {...maybeLocked}>
       <div className="BinName">Bin {name}</div>
       <BinMetadata id={binId} />
-      <Droppable droppableId={binId}>
-        {(provided) => (
-          <ListGroup ref={provided.innerRef} {...provided.droppableProps}>
-            {order.map((id, index) => (
-              <BinItem key={id} binId={binId} index={index} {...children[id]} />
-            ))}
-            {provided.placeholder}
-            <NewBinItem key={`${binId}-new`} binId={binId} />
-          </ListGroup>
-        )}
-      </Droppable>
+      <div>
+        <Droppable droppableId={binId}>
+          {(provided) => (
+            <ListGroup ref={provided.innerRef} {...provided.droppableProps}>
+              {order.map((id, index) => (
+                <BinItem
+                  key={id}
+                  binId={binId}
+                  index={index}
+                  {...children[id]}
+                />
+              ))}
+              {provided.placeholder}
+              <NewBinItem key={`${binId}-new`} binId={binId} />
+            </ListGroup>
+          )}
+        </Droppable>
+      </div>
     </div>
   );
 };
