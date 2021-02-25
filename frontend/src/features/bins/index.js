@@ -7,6 +7,11 @@ const initialState = {
   errorMessage: "",
   bins: {},
   binOrder: [],
+  // Websocket connection status.
+  ws: {
+    status: "",
+    clients: 0,
+  },
 };
 
 const reducer = createReducer(initialState, {
@@ -77,6 +82,23 @@ const reducer = createReducer(initialState, {
       delete srcBin.children[draggableId];
       destBin.order.splice(destination.index, 0, draggableId);
       destBin.children[draggableId] = item;
+    }
+  },
+  // Websocket status.
+  "REDUX_WEBSOCKET::CONNECT": (state) => {
+    state.ws.status = "connecting";
+  },
+  "REDUX_WEBSOCKET::OPEN": (state) => {
+    state.ws.status = "connected";
+  },
+  "REDUX_WEBSOCKET::CLOSED": (state) => {
+    state.ws.status = "disconnected";
+  },
+  "REDUX_WEBSOCKET::MESSAGE": (state, action) => {
+    const json  = action.payload.message;
+    const msg = JSON.parse(json);
+    if (msg.ws && msg.ws.clients !== undefined) {
+      state.ws.clients = msg.ws.clients;
     }
   },
 });
